@@ -1,6 +1,8 @@
 import numpy as np
 from Constants import *
 from King import King
+from Pawn import Pawn
+from Move import Move
 import copy
 
 
@@ -63,34 +65,40 @@ class Board:
         row, col = position
         return 0 <= row < 8 and 0 <= col < 8
     
-    def make_move(self, move):
-        start, end = move
+    def make_move(self, move: Move):
+        start, end, promotion = move.get()
         piece = self.board[start]
         self.board[start] = None
+
+        if promotion is not None:
+            piece = CHAR_TO_CLASS[promotion](piece.color, end)
         self.board[end] = piece
         piece.set_position(end)
 
         if self.is_move_capture(move):
             self.halfmove = 0
+        else:
+            self.halfmove += 1
         
         if self.turn == 'b':
             self.fullmove += 1
+
         self.turn = 'w' if self.turn == 'b' else 'b'
 
     
     def get_possible_moves(self, color):
-        moves = []
+        moves: list[Move] = []
         for piece, position in self.get_pieces_list()[0 if color == 'w' else 1]:
             if piece.color == color:
-                moves.extend([(position,x) for x in piece.get_legal_moves(self)])
+                moves.extend([Move(position,x) for x in piece.get_legal_moves(self)])
         return moves
 
-    def is_move_capture(self, move):
-        start, end = move
+    def is_move_capture(self, move: Move):
+        start, end, promotion = move.get()
         return not self.is_square_empty(end)
     
-    def is_move_promotion(self, move):
-        start, end = move
+    def is_move_promotion(self, move: Move):
+        start, end, promotion = move.get()
         piece = self.board[start]
         return isinstance(piece, Pawn) and (end[0] == 0 or end[0] == 7)
     
@@ -107,14 +115,14 @@ class Board:
         opponent_color = 'b' if color == 'w' else 'w'
         opponent_moves = self.get_possible_moves(opponent_color)
         
-        for _, end in opponent_moves:
-            if end == king_position:
+        for move in opponent_moves:
+            if move.end == king_position:
                 return True
         return False
 
-    def move_puts_king_in_check(self, start, end, color):
+    def move_puts_king_in_check(self, move: Move, color):
         board_copy = self.copy()
-        board_copy.make_move((start, end))
+        board_copy.make_move(move)
         return board_copy.is_king_in_check(color)
 
 

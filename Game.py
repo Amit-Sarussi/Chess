@@ -1,49 +1,103 @@
 from Board import Board
 from Constants import *
+from PlayerTypes import PlayerType
 from RandomPlayer import RandomPlayer
 from King import King
 from Rook import Rook
+from Move import Move
 
 class Game:
-    def __init__(self):
+    def __init__(self, player1=None, player2=None):
         self.board = Board(FEN_board=STARTING_FEN, color='w')
         self.turn = self.board.turn # 'w' or 'b'
-        self.random_player = RandomPlayer(self.board, 'b')
+        self.player1 = player1
+        self.player2 = player2
+        self.checkmate = None
 
-    def make_move(self, move, promotion=None): # move: ((1,1), (3,1)) or ((1,1), (2,1))
-      # Validate move
+    def make_move(self, move: Move, promotion=None):
+        # Validate move
         # Check if piece owned by player:
-        if self.board.is_opponent_piece(move[0], self.turn):
-            return False, None
+        if self.board.is_opponent_piece(move.start, self.turn):
+            return False, None, None
         
         # Is the movement in legal moves (Does not validate if king is in check!)?
-        if move[1] not in self.get_piece_legal_moves(move[0]):
-            return False, None
+        if move.end not in self.get_piece_legal_moves(move.start):
+            return False, None, None
 
         # Validate the move does not put the king in check:
-        if self.board.move_puts_king_in_check(*move, self.turn):
-            return False, None
+        if self.board.move_puts_king_in_check(move, self.turn):
+            return False, None, None
 
         
         self.inspect_move(move)
         self.board.make_move(move)
         
         self.turn = 'w' if self.turn == 'b' else 'b'
+
+        # Check if random player is in checkmate
+        if len(self.board.get_possible_moves(self.turn)) == 0:
+            self.checkmate = self.turn
+            return True, move, self.checkmate
         
         # make random player move:
         move = self.random_player.get_player_move()
         self.inspect_move(move)
         self.board.make_move(move)
         self.turn = 'w' if self.turn == 'b' else 'b'
-        return True, move
+        
+        # Check if player has available moves
+        if len(self.board.get_possible_moves(self.turn)) == 0:
+            self.checkmate = self.turn
 
+        return True, move, self.checkmate
+
+    def play(self):
+        while self.checkmate == None:
+            # Get move
+            if self.turn == "w":
+                move = self.player1.get_player_move()
+            else:
+                move = self.player2.get_player_move()
+
+            while self.board.is_opponent_piece(move.start, self.turn) != True and move.end not in self.get_piece_legal_moves(move.start) != True and self.board.move_puts_king_in_check(move, self.turn) != True:
+                # Get move
+                if self.turn == "w":
+                    move = self.player1.get_player_move()
+                else:
+                    move = self.player2.get_player_move()
+
+            # Submit move
+            self.inspect_move(move)
+            self.board.make_move(move)
+
+            self.turn = 'w' if self.turn == 'b' else 'b'
+
+            # Check if random player is in checkmate
+            if len(self.board.get_possible_moves(self.turn)) == 0:
+                self.checkmate = self.turn
+                return True, move, self.checkmate
+        
+        # Check if tie:
+        if self.board.is_tie():
+            self.game_history[-1].score = 0.5
+            self.calculate_score()
+            return 0, self.game_history
+        
+        if self.current_player_index == "x":
+            self.game_history[-1].score = 1
+            self.calculate_score()
+            return 1, self.game_history
+        
+        self.game_history[-1].score = 0
+        self.calculate_score()
+        return 2, self.game_history
     
     def get_piece_legal_moves(self, position):
         piece = self.board.board[position]
         return piece.get_legal_moves(self.board)
 
     def inspect_move(self, move):
-        start_square, end_square = move
+        start_square, end_square, promotion = move.get()
         piece = self.board.board[start_square]
         color = piece.color
         if isinstance(piece, King):

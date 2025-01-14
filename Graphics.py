@@ -60,6 +60,7 @@ class Graphics:
         self.GH.draw_selected_square()
         self.GH.draw_last_move_square()
         self.GH.draw_board_pieces()
+        self.GH.draw_checkmate_sign()
         self.GH.draw_held_piece()
         self.GH.draw_promotion_panel()
         

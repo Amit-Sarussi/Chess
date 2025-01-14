@@ -1,5 +1,5 @@
 from Piece import Piece
-
+from Move import Move
 class Pawn(Piece):
     def __init__(self, color, position):
         super().__init__(color, position)
@@ -17,7 +17,15 @@ class Pawn(Piece):
         
         # Normal move
         if board.is_within_bounds((row + direction, col)) and board.is_square_empty((row + direction, col)):
-            valid_moves.append((row + direction, col))
+            # Check if promotion
+            if board.is_move_promotion(Move(self.position, (row + direction, col))):
+                for promotion in ['q', 'r', 'b', 'n']:
+                    valid_moves.append((row + direction, col, promotion))
+                valid_moves.append((row + direction, col))
+            
+            # If not promotion and just normal move
+            else:
+                valid_moves.append((row + direction, col))
             # Double move
             if self.is_first_move() and board.is_within_bounds((row + 2 * direction, col)):
                 if board.is_square_empty((row + 2 * direction, col)):
@@ -29,13 +37,16 @@ class Pawn(Piece):
             if board.is_within_bounds(target) and board.is_opponent_piece(target, self.color):
                 valid_moves.append(target)
         
+        # En Passant
+        # if board.en_passant != '-':
+        #     en_passant_target = (8 - int(board.en_passant[1]), ord(board.en_passant[0]) - ord('a'))
+        #     if en_passant_target == (row + direction, col - 1) or en_passant_target == (row + direction, col + 1):
+        #         valid_moves.append(en_passant_target)
+        
         return valid_moves
 
     def is_first_move(self):
         return self.position[0] == 6 if self.color == 'w' else self.position[0] == 1        
     
-    # En Passant
-    # if board.en_passant != '-':
-    #     en_passant_target = (8 - int(board.en_passant[1]), ord(board.en_passant[0]) - ord('a'))
-    #     if en_passant_target == (row + direction, col - 1) or en_passant_target == (row + direction, col + 1):
-    #         valid_moves.append(en_passant_target)
+    
+   

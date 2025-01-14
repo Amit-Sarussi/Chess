@@ -6,10 +6,15 @@ import Pawn, Rook, Knight, Bishop, Queen, King
 FRAME_RATE: Final = 165
 SCREEN_SIZE: Final = (700, 700)
 ICON: Final = "Assets/Icon.png"
+CLOSE_ICON: Final = "Assets/close.png"
 CHESS_COM_FONT = "Assets/ChessCom.ttf"
 PIECES_DIR = "Assets/Pieces_Packs/Default/"
 PIECE_SIZE = (SCREEN_SIZE[0] // (8), SCREEN_SIZE[1] // (8))
 SHOW_FPS: Final = False
+CLOSE_ICON_SIZE: Final = (20, 20)
+CHECKMATE_ICON = "Assets/checkmate.png"
+CHECKMATE_ICON_SIZE: Final = (28, 28)
+
 
 # Sound Settings
 FREQUENCY: Final = 44100
