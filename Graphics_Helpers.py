@@ -210,19 +210,32 @@ class Graphic_Helpers:
         return None
     
     def draw_checkmate_sign(self):
-        # Find checkmated king location:
-        black_pieces = self.board.get_pieces_list()[0 if self.checkmate == 'w' else 1]
-        for piece, location in black_pieces:
-            if isinstance(piece, King):
-                king_loc = location
-                break
-        
-        w, h = self.screen.get_size()
-        checkmate_icon_surface = pygame.image.load(CHECKMATE_ICON)
-        checkmate_icon_surface = checkmate_icon_surface.convert_alpha()
-        checkmate_icon_surface = pygame.transform.smoothscale(checkmate_icon_surface, CHECKMATE_ICON_SIZE)
-        self.screen.blit(checkmate_icon_surface, ((location[1]+0.63)*w//8, (location[0]+0.06)*h//8))
-                
+        if self.checkmate == "t" or self.checkmate == 'b':
+            # Find checkmated king location:
+            black_pieces = self.board.get_pieces_list()[1]
+            for piece in black_pieces:
+                if isinstance(piece, King):
+                    king_loc = piece.position
+                    break
+            
+            w, h = self.screen.get_size()
+            checkmate_icon_surface = pygame.image.load(CHECKMATE_ICON)
+            checkmate_icon_surface = checkmate_icon_surface.convert_alpha()
+            checkmate_icon_surface = pygame.transform.smoothscale(checkmate_icon_surface, CHECKMATE_ICON_SIZE)
+            self.screen.blit(checkmate_icon_surface, ((king_loc[1]+0.63)*w//8, (king_loc[0]+0.06)*h//8))
+        if self.checkmate == "t" or self.checkmate == 'w':
+            # Find checkmated king location:
+            white_pieces = self.board.get_pieces_list()[0]
+            for piece in white_pieces:
+                if isinstance(piece, King):
+                    king_loc = piece.position
+                    break
+            
+            w, h = self.screen.get_size()
+            checkmate_icon_surface = pygame.image.load(CHECKMATE_ICON)
+            checkmate_icon_surface = checkmate_icon_surface.convert_alpha()
+            checkmate_icon_surface = pygame.transform.smoothscale(checkmate_icon_surface, CHECKMATE_ICON_SIZE)
+            self.screen.blit(checkmate_icon_surface, ((king_loc[1]+0.63)*w//8, (king_loc[0]+0.06)*h//8)) 
 
     
     def draw_fps(self, fps):
@@ -263,7 +276,12 @@ class Graphic_Helpers:
                     return
             
             # Is waiting for promotion selection
-            if not self.select_promotion_state and self.board.is_move_promotion(move):
+            moves = [move.copy() for _ in range(4)]
+            for i, c in enumerate('qrbn'):
+                moves[i].promotion = c
+
+            move_valid = all(self.board.validate_move(m, self.color, check_pseudo_legal=True) for m in moves)
+            if not self.select_promotion_state and move_valid and self.board.is_move_promotion(move):
                 self.select_promotion_state = True
                 self.waiting_promotion_move = move
                 return
@@ -291,3 +309,11 @@ class Graphic_Helpers:
                     self.hover_square = (7 - square[0], 7 - square[1])
                     
             self.mouse_pos = mouse_pos
+    
+    def print_board_data(self):
+        print(f"FEN: {self.board.board_to_FEN()}")
+        print(f"Castling: {self.board.castling}")
+        print(f"En Passant: {self.board.en_passant}")
+        print(f"Halfmove: {self.board.halfmove}")
+        print(f"Fullmove: {self.board.fullmove}")
+        print(f"Turn: {self.board.turn}")

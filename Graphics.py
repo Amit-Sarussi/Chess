@@ -4,9 +4,10 @@ from Constants import *
 from Graphics_Helpers import Graphic_Helpers
 import os
 
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 class Graphics:
-    def __init__(self, board, color, controller):
+    def __init__(self, board, color, controller=None, spectate_mode=False, GameViewer=None):
         flags = DOUBLEBUF
         self.screen = pygame.display.set_mode(SCREEN_SIZE, flags)
         self.board = board
@@ -16,7 +17,6 @@ class Graphics:
         pygame.display.set_caption('Chess AI | Amit Sarussi')
         icon = pygame.image.load(ICON)
         pygame.display.set_icon(icon)
-        os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
         pygame.font.init()
         self.font = pygame.font.Font(CHESS_COM_FONT, 24)
@@ -24,8 +24,15 @@ class Graphics:
         self.GH = Graphic_Helpers(self.screen, self.board, self.font, self.color, controller)
         self.selected_square = None
         self.is_holding = False
+        self.spectate = spectate_mode
+        self.GV = GameViewer
+        self.stopped_playing = False
         
         self.screen.set_alpha(None)
+
+        if self.spectate:
+            self.MOVEEVENT, t, trail = pygame.USEREVENT+1, self.GV.time_between, []
+            pygame.time.set_timer(self.MOVEEVENT, t)
         
     
     def start(self):
@@ -34,15 +41,27 @@ class Graphics:
         
         while True:
             for event in pygame.event.get():
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    self.GH.mouse_down(pygame.mouse.get_pos())
-                    
-                if event.type == pygame.MOUSEBUTTONUP:
-                    self.GH.mouse_up(pygame.mouse.get_pos())
-                    
-                if event.type == pygame.MOUSEMOTION:
-                    self.GH.on_mouse_move(pygame.mouse.get_pos())
-                
+                if self.spectate == False:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        self.GH.mouse_down(pygame.mouse.get_pos())
+                        
+                    if event.type == pygame.MOUSEBUTTONUP:
+                        self.GH.mouse_up(pygame.mouse.get_pos())
+                        
+                    if event.type == pygame.MOUSEMOTION:
+                        self.GH.on_mouse_move(pygame.mouse.get_pos())
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_b:
+                            self.GH.print_board_data()
+                else:
+                    if event.type == self.MOVEEVENT:
+                        move = self.GV.make_next_move()
+                        if move == None:
+                            pygame.event.clear(self.MOVEEVENT)
+                            self.GH.checkmate = self.GV.checkmate
+                            self.stopped_playing = True
+                        self.GH.last_move = move
+
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     return
@@ -60,7 +79,8 @@ class Graphics:
         self.GH.draw_selected_square()
         self.GH.draw_last_move_square()
         self.GH.draw_board_pieces()
-        self.GH.draw_checkmate_sign()
+        if self.stopped_playing == True or self.GH.checkmate is not None:
+            self.GH.draw_checkmate_sign()
         self.GH.draw_held_piece()
         self.GH.draw_promotion_panel()
         
@@ -68,7 +88,6 @@ class Graphics:
         
         if SHOW_FPS:
             self.GH.draw_fps(self.clock.get_fps())
-        
         
         # Update the display
         pygame.display.flip()
