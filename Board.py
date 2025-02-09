@@ -1,7 +1,6 @@
-from idna import decode
 from Constants import *
 from Move import encode_move, decode_move
-from PreComputer import generate_attacks, generate_rays
+from PreComputer import create_bishop_lookup_table, create_rook_lookup_table, generate_attacks, generate_masks
 import chess
 
 class Board:
@@ -12,7 +11,9 @@ class Board:
         self.turn = "white" if turn == "w" else "black"
         self.moves = []
         self.attacks = generate_attacks()
-        self.rays = generate_rays()
+        self.masks = generate_masks()
+        self.rook_lookup = create_rook_lookup_table()
+        self.bishop_lookup = create_bishop_lookup_table()
         self.update_color_bitboards()
         self.update_attack_bitboards()
     
@@ -381,31 +382,6 @@ class Board:
 
         return valid_moves
         
-    def get_bishop_attacks(self, square):
-        attacks = 0
-        
-        # North East
-        masked_blockers = self.get_all_pieces() & self.rays["NORTH_EAST"][square]
-        first_block = self.bsf(masked_blockers)
-        attacks |= self.rays["NORTH_EAST"][square] & ~self.rays["NORTH_EAST"][first_block]
-        
-        # South East
-        masked_blockers = self.get_all_pieces() & self.rays["SOUTH_EAST"][square]
-        first_block = self.bsr(masked_blockers)
-        attacks |= self.rays["SOUTH_EAST"][square] & ~self.rays["SOUTH_EAST"][first_block]
-        
-        # South West
-        masked_blockers = self.get_all_pieces() & self.rays["SOUTH_WEST"][square]
-        first_block = self.bsr(masked_blockers)
-        attacks |= self.rays["SOUTH_WEST"][square] & ~self.rays["SOUTH_WEST"][first_block]
-        
-        # North West
-        masked_blockers = self.get_all_pieces() & self.rays["NORTH_WEST"][square]
-        first_block = self.bsf(masked_blockers)
-        attacks |= self.rays["NORTH_WEST"][square] & ~self.rays["NORTH_WEST"][first_block]
-        
-        return attacks
-
     def count_legal_moves(self, fen_string):
         """Counts the number of legal moves from a given FEN string.
 
@@ -420,30 +396,23 @@ class Board:
             return board.legal_moves.count()
         except ValueError: # handle invalid FEN
             return 0
-    
+        
+    def get_bishop_attacks(self, square):
+        all_pieces = self.get_all_pieces()
+        blocker = all_pieces & self.masks["BISHOP"][square]
+        magic_number, shift = BISHOP_MAGICS[square], BISHOP_SHIFTS[square]
+        key = (blocker * magic_number) >> shift
+        
+        attacks = self.bishop_lookup[square][key]
+        return attacks
+
     def get_rook_attacks(self, square):
-        attacks = 0
+        all_pieces = self.get_all_pieces()
+        blocker = all_pieces & self.masks["ROOK"][square]
+        magic_number, shift = ROOK_MAGICS[square], ROOK_SHIFTS[square]
+        key = (blocker * magic_number) >> shift
         
-        # North
-        masked_blockers = self.get_all_pieces() & self.rays["NORTH"][square]
-        first_block = self.bsf(masked_blockers)
-        attacks |= self.rays["NORTH"][square] & ~self.rays["NORTH"][first_block]
-        
-        # East
-        masked_blockers = self.get_all_pieces() & self.rays["EAST"][square]
-        first_block = self.bsf(masked_blockers)
-        attacks |= self.rays["EAST"][square] & ~self.rays["EAST"][first_block]
-        
-        # South
-        masked_blockers = self.get_all_pieces() & self.rays["SOUTH"][square]
-        first_block = self.bsr(masked_blockers)
-        attacks |= self.rays["SOUTH"][square] & ~self.rays["SOUTH"][first_block]
-        
-        # West
-        masked_blockers = self.get_all_pieces() & self.rays["WEST"][square]
-        first_block = self.bsr(masked_blockers)
-        attacks |= self.rays["WEST"][square] & ~self.rays["WEST"][first_block]
-        
+        attacks = self.rook_lookup[square][key]
         return attacks
     
     def get_pawn_moves(self, square, color):
@@ -456,8 +425,9 @@ class Board:
 
         # Single push
         target_square = square + direction
+        rank_target_square = target_square // 8
         if self.is_square_empty(target_square):
-            if rank == 7 or rank == 0: #Promotion check
+            if rank_target_square == 7 or rank_target_square == 0: #Promotion check
                 for promotion_piece in range(1, 5): #Promotion moves
                     moves.append(encode_move(square, target_square, promotion=promotion_piece)) #Add promotion move
             else:
@@ -476,24 +446,20 @@ class Board:
                 target_square = square + direction + capture_offset
                 if 0 <= target_square < 64:  # Check if it is on the board
                     if self.bitboards[other_color] & (1 << target_square) or target_square == self.en_passant:  # Check if it is a capture or en passant
-                        if rank == 7 or rank == 0:  # Promotion check
+                        target_rank = target_square // 8
+                        if target_rank == 7 or target_rank == 0:  # Promotion check
                             for promotion_piece in range(1, 5):  # Promotion moves
                                 moves.append(encode_move(square, target_square, promotion=promotion_piece))  # Add promotion move
                         else:
                             moves.append(encode_move(square, target_square))
         return moves
     
-    def bsf(self, bitboard):
-        # Bit Scan Forward: Find the first set bit (lowest 1-bit)
-        if bitboard == 0:
-            return -1  # No set bits
-        return (bitboard & -bitboard).bit_length() - 1
+    def bsf(self, bitboard: int) -> int:
+        return (bitboard & -bitboard).bit_length() - 1 if bitboard else -1
 
-    def bsr(self, bitboard):
-        # Bit Scan Reverse: Find the last set bit (highest 1-bit)
-        if bitboard == 0:
-            return -1  # No set bits
-        return bitboard.bit_length() - 1
+    def bsr(self, bitboard: int) -> int:
+        return bitboard.bit_length() - 1 if bitboard else -1
+
     
     def get_all_pieces(self):
         return self.bitboards["white"] | self.bitboards["black"]
