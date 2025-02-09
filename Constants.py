@@ -1,7 +1,5 @@
 from typing import Final
 
-import Pawn, Rook, Knight, Bishop, Queen, King
-
 # Graphics Settings
 FRAME_RATE: Final = 165
 SCREEN_SIZE: Final = (700, 700)
@@ -24,13 +22,13 @@ BUFFER: Final = 512
 
 # Board Settings
 STARTING_FEN: Final = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-CHAR_TO_CLASS: Final = {
-    'p': Pawn.Pawn,
-    'r': Rook.Rook,
-    'n': Knight.Knight,
-    'b': Bishop.Bishop,
-    'q': Queen.Queen,
-    'k': King.King
+PIECE_TO_CHAR: Final = {
+    "pawn": "p",
+    "knight": "n",  # Knight is 'n', not 'k'
+    "bishop": "b",
+    "rook": "r",
+    "queen": "q",
+    "king": "k"
 }
 LIGHT_SQUARE_COLOR: Final = (238, 238, 210)
 DARK_SQUARE_COLOR: Final = (118, 150, 86)
